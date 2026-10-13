@@ -1,0 +1,6 @@
+question,expected_route,route,route_ok,doc_question,retrieved,retrieval_ok,top3,top3_ok,rank,final_source,final_ok,answer_start,table_found,table_ok
+What topics are in the Python Programming Lab?,DOCUMENTS,DOCUMENTS,True,What topics are in the Python Programming Lab?,22ADC05N,True,22ADC05N;22CSC02N;22ADC32N,True,1,22ADC05N,True,Source: 22ADC05N   | Topics covered in the Python Programming Lab:   | 1. Setting up a Python ,,
+What does Reinforcement Learning cover?,DOCUMENTS,DOCUMENTS,True,What does Reinforcement Learning cover?,22CAE08N,True,22CAE08N;22CAE09N;22ADC61N,True,1,22CAE08N,True,Source: 22CAE08N   | Reinforcement Learning covers:   |  | - **Unit I – Introduction**: basic co,,
+Which semester 4 subjects have 1.5 credits?,TABLE,TABLE,True,,,,,,,,,,22ADC42N;22CSC13N;22ITC09N,True
+How many subjects are there in semester 6?,TABLE,TABLE,True,,,,,,,,,,,True
+Tell me the topics in Discrete Mathematics and how many credits it has,BOTH,BOTH,True,What are the topics covered in the Discrete Mathematics course?,22ITC05N,True,22ITC05N;22MTO01;22CSC02N,True,1,22ITC05N,True,Source: 22ITC05N   |  | **Discrete Mathematics – Topics Covered** |  | - **UNIT‑I**:   |   - Introdu,22ITC05N,True

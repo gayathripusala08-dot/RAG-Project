@@ -1,0 +1,25 @@
+question,expected_route,expected_subject_code,expected_table_codes,expected_text,notes
+What topics are covered in Data Structures?,DOCUMENTS,22ITC20N,,,document question
+What are the units in Operating Systems?,DOCUMENTS,22CSC15N,,,document question
+What does the Database Management Systems course teach?,DOCUMENTS,22CSC11N,,,document question
+What is covered in Computer Networks?,DOCUMENTS,22ITC10N,,,document question
+What topics are in Fundamentals of Machine Learning?,DOCUMENTS,22ADC41N,,,theory course and lab both exist
+What does the Generative AI course cover?,DOCUMENTS,22ADE76N,,,theory course and lab both exist
+What is taught in Cloud Computing?,DOCUMENTS,22ITC29N,,,document question
+What does Natural Language Processing with Transformers cover?,DOCUMENTS,22ADE50N,,,document question
+Which semester 3 subjects have more than 2 credits?,TABLE,,22MTC07;22ITC05N;22ITC02N;22CSC14N,,filter by semester and credits
+How many credits is Java Programming?,TABLE,,22ITC02N;22ITC03N,,course and lab both match
+Which subjects in semester 1 have 4 credits?,TABLE,,22MTC01,,filter by semester and credits
+Which subjects in semester 8 have more than 3 credits?,TABLE,,22ADC82N,,only one subject qualifies
+What is the credit value of Operating Systems?,TABLE,,22CSC15N,,single subject lookup
+Which semester 5 subjects have 1.5 credits?,TABLE,,22ADC53N;22ADC54N,,decimal credits
+How many subjects are there in semester 2?,TABLE,,,10,count question - answer is 10
+Which subjects have 0 credits?,TABLE,,22EGM01;22CEM01,,zero value filter
+How many credits is Database Management Systems?,TABLE,,22CSC11N;22CSC13N,,tricky - theory title is spelled DATA BASE in the table
+What does Data Structures cover and how many credits is it worth?,BOTH,22ITC20N,22ITC20N;22ITC21N,,compound question
+What topics are in Operating Systems and which semester is it taught in?,BOTH,22CSC15N,22CSC15N,,compound question
+What does Fundamentals of Machine Learning cover and how many credits does it have?,BOTH,22ADC41N,22ADC41N;22ADC42N,,compound question
+Tell me what Computer Networks teaches and how many credits it has,BOTH,22ITC10N,22ITC10N,,compound question
+What is Cloud Computing about and in which semester is it taught?,BOTH,22ITC29N,22ITC29N,,compound question
+What topics are in Machin Learning?,DOCUMENTS,22ADC41N,,,tricky - spelling mistake
+What does the Quantum Gravity course cover?,DOCUMENTS,NONE,,,tricky - no such subject so the answer should say NONE
