@@ -10,7 +10,7 @@ Run it from the project folder with:
     python -m uvicorn server:app
 
 then open http://127.0.0.1:8000 in your browser.
-Needs the GROQ_API_KEY environment variable, like hybrid_router.py.
+Needs the projectapi environment variable (your Groq API key), like hybrid_router.py.
 """
 
 import contextlib
@@ -31,8 +31,8 @@ try:
     from hybrid_router import answer_question
 except KeyError:
     raise SystemExit(
-        "GROQ_API_KEY is not set. Set it with setx, open a NEW terminal, "
-        "and run the server again."
+        "The projectapi environment variable (your Groq API key) is not set. "
+        "Set it with setx, open a NEW terminal, and run the server again."
     )
 
 BASE_DIR = Path(__file__).parent
@@ -58,7 +58,7 @@ def friendly_error(message):
     if "429" in message or "rate limit" in lowered:
         return "The free LLM plan's limit has been reached. Please wait a while and try again."
     if "401" in message or "api key" in lowered or "api_key" in lowered:
-        return "The API key is missing or invalid. Check the GROQ_API_KEY setting."
+        return "The API key is missing or invalid. Check the projectapi setting."
     return f"Something went wrong: {message}"
 
 

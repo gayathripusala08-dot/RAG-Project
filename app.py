@@ -4,13 +4,14 @@ Streamlit web page for the CBIT AI&DS syllabus assistant.
 Run it from the project folder with:
     python -m streamlit run app.py
 
-It uses the same engine as hybrid_router.py, so the GROQ_API_KEY
-environment variable must be set.
+It uses the same engine as hybrid_router.py, so the projectapi
+environment variable (your Groq API key) must be set.
 """
 
 import contextlib
 import io
 import re
+import threading
 
 import streamlit as st
 
@@ -27,8 +28,8 @@ try:
         from hybrid_router import NOT_FOUND_MESSAGE, NO_ROWS_MESSAGE, answer_question
 except KeyError:
     st.error(
-        "GROQ_API_KEY is not set. Set it in your terminal, restart the "
-        "terminal, and run the app again."
+        "The projectapi environment variable (your Groq API key) is not set. "
+        "Set it in your terminal, restart the terminal, and run the app again."
     )
     st.stop()
 
@@ -39,13 +40,19 @@ EXAMPLES = [
 ]
 
 
+@st.cache_resource
+def get_engine_lock():
+    """One lock shared by every browser session (the script itself re-runs on each click)."""
+    return threading.Lock()
+
+
 def friendly_error(message):
     """Turn a technical error into a short message a student can understand."""
     lowered = message.lower()
     if "429" in message or "rate limit" in lowered:
         return "The free LLM plan's limit has been reached. Please wait a while and try again."
     if "401" in message or "api key" in lowered or "api_key" in lowered:
-        return "The API key is missing or invalid. Check the GROQ_API_KEY setting."
+        return "The API key is missing or invalid. Check the projectapi setting."
     return f"Something went wrong: {message}"
 
 
@@ -54,7 +61,8 @@ def ask(question):
     buffer = io.StringIO()
     answer, error = "", None
     try:
-        with contextlib.redirect_stdout(buffer):
+        # The engine prints its steps (captured below), so only one question runs at a time.
+        with get_engine_lock(), contextlib.redirect_stdout(buffer):
             answer = answer_question(question)
     except Exception as e:
         error = str(e)
