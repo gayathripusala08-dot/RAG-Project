@@ -17,6 +17,7 @@ Required environment variable:
     projectapi   (your Groq API key)
 """
 
+import difflib
 import os
 import re
 import sqlite3
@@ -175,6 +176,29 @@ def expand_abbreviations(question):
             return full
 
         question = re.sub(rf"\b{re.escape(short)}\b", replace, question, flags=re.IGNORECASE)
+    return _fix_alias_typos(question)
+
+
+def _fix_alias_typos(question, cutoff=0.9):
+    """
+    Catch small spelling mistakes in everyday names, e.g. 'Machin Learning'.
+
+    Slides a window with the same number of words as each alias over the
+    question. If the window is almost (but not exactly) the alias, it is
+    replaced by the official title. Only the ALIASES are checked this way;
+    short forms like DM are too short to match safely by similarity.
+    """
+    for short, full in ALIASES.items():
+        n = len(short.split())
+        words = list(re.finditer(r"[A-Za-z0-9+&]+", question))
+        for i in range(len(words) - n + 1):
+            start, end = words[i].start(), words[i + n - 1].end()
+            window = question[start:end]
+            if window.lower() == short.lower() or _inside_known_title(question, start, end):
+                continue
+            if difflib.SequenceMatcher(None, window.lower(), short.lower()).ratio() >= cutoff:
+                question = question[:start] + full + question[end:]
+                break
     return question
 
 
@@ -224,14 +248,12 @@ def build_document_prompt(question, indices):
     )
 
 
-def answer_from_documents(question, k=5):
+def retrieve_indices(question, k=5):
     """
-    Answer a content-related question using retrieval-augmented generation.
+    Pick the k syllabus entries to show the LLM, best first.
 
-    Subjects whose full title appears in the question are placed first, and
-    the semantic (FAISS) search fills the remaining slots up to k. The LLM
-    then chooses the entry that matches the subject asked about. The reply
-    starts with a 'Source: <code>' line, so every answer names its subject.
+    Subjects whose full title appears in the question go first, and the
+    semantic (FAISS) search fills the remaining slots.
     """
     query_vector = np.array(embed_model.encode([question])).astype("float32")
     _, faiss_indices = doc_index.search(query_vector, k)
@@ -240,8 +262,18 @@ def answer_from_documents(question, k=5):
     for i in faiss_indices[0]:
         if i not in indices:
             indices.append(i)
-    indices = indices[:k]
+    return indices[:k]
 
+
+def answer_from_documents(question, k=5):
+    """
+    Answer a content-related question using retrieval-augmented generation.
+
+    The LLM sees the entries picked by retrieve_indices and chooses the one
+    that matches the subject asked about. The reply starts with a
+    'Source: <code>' line, so every answer names its subject.
+    """
+    indices = retrieve_indices(question, k)
     print(f"[Retrieved: {[codes[i] for i in indices]}]")  # kept for debugging
     return ask_llm(build_document_prompt(question, indices))
 
