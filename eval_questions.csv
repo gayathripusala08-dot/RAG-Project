@@ -7,7 +7,7 @@ What topics are in Fundamentals of Machine Learning?,DOCUMENTS,22ADC41N,,,theory
 What does the Generative AI course cover?,DOCUMENTS,22ADE76N,,,theory course and lab both exist
 What is taught in Cloud Computing?,DOCUMENTS,22ITC29N,,,document question
 What does Natural Language Processing with Transformers cover?,DOCUMENTS,22ADE50N,,,document question
-Which semester 3 subjects have more than 2 credits?,TABLE,,22MTC07;22ITC05N;22ITC02N;22CSC14N,,filter by semester and credits
+Which semester 3 subjects have more than 2 credits?,TABLE,,22MTC07;22ITC05N;22ITC02N;22CSC14N;22ITC01N,,filter by semester and credits
 How many credits is Java Programming?,TABLE,,22ITC02N;22ITC03N,,course and lab both match
 Which subjects in semester 1 have 4 credits?,TABLE,,22MTC01,,filter by semester and credits
 Which subjects in semester 8 have more than 3 credits?,TABLE,,22ADC82N,,only one subject qualifies
