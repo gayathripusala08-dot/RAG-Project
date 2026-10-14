@@ -49,6 +49,18 @@ ABBREVIATIONS = {
     "RL": "Reinforcement Learning",
     "BDA": "Principles of Big Data Analytics",
     "MSF": "Mathematical and Statistical Foundations",
+    "DM": "Discrete Mathematics",
+    "RPA": "Robotic Process Automation",
+    "XAI": "Explainable Artificial Intelligence (XAI)",
+}
+
+# Everyday names students use for subjects whose official title is longer or
+# worded differently. Same rule as above: the full name must match a title
+# in subjects.csv.
+ALIASES = {
+    "Data Structures": "Data Structures using C++",
+    "Machine Learning": "Fundamentals of Machine Learning",
+    "Explainable Artificial Intelligence": "Explainable Artificial Intelligence (XAI)",
 }
 
 NO_ROWS = "No matching rows found."  # what the SQL path returns for an empty result
@@ -95,7 +107,7 @@ sql_df.to_sql("subjects", conn, index=False, if_exists="replace")
 # Startup check: every abbreviation must point to an exact title in subjects.csv,
 # otherwise the title match in the document path cannot find it.
 _all_titles = {t.lower() for t in titles_df["title"]}
-for _short, _full in ABBREVIATIONS.items():
+for _short, _full in {**ABBREVIATIONS, **ALIASES}.items():
     if _full.lower() not in _all_titles:
         print(f"[WARNING] {_short} -> '{_full}' is not an exact title in subjects.csv")
 
@@ -136,10 +148,33 @@ def is_safe_select(sql):
     return not any(re.search(rf"\b{word}\b", lowered) for word in banned)
 
 
+def _inside_known_title(text, start, end):
+    """True if text[start:end] sits inside a full subject title that appears in text."""
+    lowered = text.lower()
+    for title in _all_titles:
+        pos = lowered.find(title)
+        while pos != -1:
+            if pos <= start and end <= pos + len(title):
+                return True
+            pos = lowered.find(title, pos + 1)
+    return False
+
+
 def expand_abbreviations(question):
-    """Replace known short forms (like DAA) with the full subject name."""
-    for short, full in ABBREVIATIONS.items():
-        question = re.sub(rf"\b{re.escape(short)}\b", full, question, flags=re.IGNORECASE)
+    """
+    Replace short forms (like DAA) and everyday names (like Data Structures)
+    with the official subject title.
+
+    A match that is already part of a full title is left alone, so a title the
+    student typed in full is never expanded twice.
+    """
+    for short, full in {**ABBREVIATIONS, **ALIASES}.items():
+        def replace(match, full=full):
+            if _inside_known_title(match.string, match.start(), match.end()):
+                return match.group(0)
+            return full
+
+        question = re.sub(rf"\b{re.escape(short)}\b", replace, question, flags=re.IGNORECASE)
     return question
 
 
