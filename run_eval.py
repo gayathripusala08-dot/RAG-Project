@@ -5,8 +5,10 @@ Reads eval_questions.csv, runs every question through the real system,
 and scores three things separately:
 
     1. Router     - did it pick the expected route (DOCUMENTS / TABLE / BOTH)?
-    2. Retrieval  - did the document search rank the expected subject first
-                    (top 1), or at least somewhere in its best three (top 3)?
+    2. Retrieval  - did the system's retrieval (title match + document search)
+                    rank the expected subject first (top 1), or at least
+                    somewhere in its best three (top 3)? The embedding search
+                    alone is also scored, as a baseline to compare against.
     3. Final answer - which subject did the written answer actually use?
     4. Table      - did the SQL return exactly the expected rows?
 
@@ -29,6 +31,8 @@ from hybrid_router import (
     decide_route,
     doc_index,
     embed_model,
+    expand_abbreviations,
+    retrieve_indices,
     split_question,
 )
 
@@ -47,7 +51,12 @@ def normalize_route(raw):
 
 
 def retrieve_codes(question, k=3):
-    """Return the codes of the k subjects the document search ranks highest, best first."""
+    """Codes of the k subjects the real system would show the LLM (title match + search), best first."""
+    return [codes[i] for i in retrieve_indices(question, k)]
+
+
+def faiss_only_codes(question, k=3):
+    """Baseline for comparison: the embedding search alone, with no title matching."""
     vector = np.array(embed_model.encode([question])).astype("float32")
     _, indices = doc_index.search(vector, k)
     return [codes[i] for i in indices[0]]
@@ -59,10 +68,12 @@ def split_codes(text):
 
 def run_row(row):
     """Score one question. Returns a dict of results (True / False / None = not scored)."""
-    question = row["question"]
+    # Same first step as the real system: spell out short forms and everyday
+    # names (DAA, Data Structures) before anything else happens.
+    question = expand_abbreviations(row["question"])
     expected_route = row["expected_route"]
 
-    result = {"question": question, "expected_route": expected_route}
+    result = {"question": row["question"], "expected_route": expected_route}
 
     # 1. Router
     route = normalize_route(decide_route(question).upper())
@@ -87,12 +98,17 @@ def run_row(row):
         result["retrieval_ok"] = picked[0] == expected_subject
         result["top3_ok"] = expected_subject in picked
         result["top5_ok"] = expected_subject in ranked[:5]
+        faiss_ranked = faiss_only_codes(doc_question, k=10)
+        result["faiss_top1_ok"] = faiss_ranked[0] == expected_subject
+        result["faiss_top3_ok"] = expected_subject in faiss_ranked[:3]
     else:
         result["retrieved"] = ""
         result["top3"] = ""
         result["retrieval_ok"] = None
         result["top3_ok"] = None
         result["top5_ok"] = None
+        result["faiss_top1_ok"] = None
+        result["faiss_top3_ok"] = None
         result["rank"] = ""
 
     # 2b. Final answer: which subject did the answer actually come from?
@@ -219,12 +235,15 @@ if __name__ == "__main__":
     print("Retrieval (top 1) :", percent(results, "retrieval_ok"))
     print("Retrieval (top 3) :", percent(results, "top3_ok"))
     print("Retrieval (top 5) :", percent(results, "top5_ok"))
+    print("   (for comparison, embedding search alone: top 1 "
+          f"{percent(results, 'faiss_top1_ok')} | top 3 {percent(results, 'faiss_top3_ok')})")
     print("Final answer used the right subject:", percent(results, "final_ok"))
     print("Table accuracy    :", percent(results, "table_ok"))
 
     fields = [
         "question", "expected_route", "route", "route_ok",
         "doc_question", "retrieved", "retrieval_ok", "top3", "top3_ok", "rank",
+        "faiss_top1_ok", "faiss_top3_ok",
         "final_source", "final_ok", "answer_start", "table_found", "table_ok",
     ]
     def save(filename):
