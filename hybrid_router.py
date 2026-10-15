@@ -53,6 +53,8 @@ ABBREVIATIONS = {
     "DM": "Discrete Mathematics",
     "RPA": "Robotic Process Automation",
     "XAI": "Explainable Artificial Intelligence (XAI)",
+    "ML": "Fundamentals of Machine Learning",
+    "CC": "Cloud Computing",
 }
 
 # Everyday names students use for subjects whose official title is longer or
@@ -64,14 +66,32 @@ ALIASES = {
     "Explainable Artificial Intelligence": "Explainable Artificial Intelligence (XAI)",
 }
 
+# Short forms are also built automatically from the subject titles (ICFP, DLCA, ...).
+# Words that are skipped when taking the first letters of a title:
+SMALL_WORDS = {"and", "of", "to", "the", "for", "in", "with", "using", "on", "a", "an"}
+# Automatic short forms that are also everyday words or names, so they are never expanded:
+BLOCKED_SHORT_FORMS = {"ITS", "IIT", "CSE"}
+
+# What the assistant says to a greeting or to text that is not about subjects.
+HELP_MESSAGE = (
+    "Hi! How can I help you? Ask me about any subject in the CBIT AI&DS syllabus: "
+    "what it covers, its credits, or which semester it is in. "
+    'For example: "What does Cloud Computing cover?" or "Credits for DBMS".'
+)
+GREETING_PATTERN = re.compile(
+    r"(hi+|hello+|hey+|hai|hlo|helo|yo|sup|namaste|ok|okay|thanks|thank you|thankyou|bye|help|"
+    r"good (morning|afternoon|evening|night)|how are you|who are you|what can you do)",
+    re.IGNORECASE,
+)
+
 NO_ROWS = "No matching rows found."  # what the SQL path returns for an empty result
 NOT_FOUND_MESSAGE = (
     "I couldn't find that subject in the CBIT AI&DS syllabus. "
     "Please check the spelling or try the full subject name."
 )
 NO_ROWS_MESSAGE = (
-    "No subjects in the table match that question. If you asked about a "
-    "specific subject, it may not be part of the CBIT AI&DS syllabus."
+    "Sorry, I couldn't find any subject matching that. Try the full subject "
+    "name or a short form like DBMS, or check the spelling."
 )
 
 # The API key is read from the environment so it is never stored in the code.
@@ -104,6 +124,35 @@ sql_df = pd.read_csv("subjects.csv")
 # thread) use this connection. It is only read from, never written to.
 conn = sqlite3.connect(":memory:", check_same_thread=False)
 sql_df.to_sql("subjects", conn, index=False, if_exists="replace")
+
+def make_short_form(title):
+    """First letters of a title, e.g. 'INDIAN CONSTITUTION AND FUNDAMENTAL PRINCIPLES' -> 'ICFP'."""
+    title = re.sub(r"\(.*?\)", "", title)  # ignore things like (XAI)
+    words = [w for w in re.findall(r"[A-Za-z0-9]+", title) if w.lower() not in SMALL_WORDS]
+    return "".join(w[0] for w in words).upper()
+
+
+def build_auto_short_forms():
+    """
+    Make a short form for every theory subject, e.g. {'ICFP': 'INDIAN CONSTITUTION ...'}.
+
+    A short form is skipped if it is shorter than 3 letters, if two subjects would
+    share it (it would be a guess), or if it is in BLOCKED_SHORT_FORMS.
+    """
+    found = {}
+    for title in titles_df["title"]:
+        title = str(title)
+        if title.upper().endswith(" LAB"):
+            continue  # a student types the short form plus 'lab', e.g. 'dbms lab'
+        found.setdefault(make_short_form(title), []).append(title)
+    return {
+        short: names[0]
+        for short, names in found.items()
+        if len(short) >= 3 and len(names) == 1 and short not in BLOCKED_SHORT_FORMS
+    }
+
+
+AUTO_SHORT_FORMS = build_auto_short_forms()
 
 # Startup check: every abbreviation must point to an exact title in subjects.csv,
 # otherwise the title match in the document path cannot find it.
@@ -169,7 +218,7 @@ def expand_abbreviations(question):
     A match that is already part of a full title is left alone, so a title the
     student typed in full is never expanded twice.
     """
-    for short, full in {**ABBREVIATIONS, **ALIASES}.items():
+    for short, full in {**AUTO_SHORT_FORMS, **ABBREVIATIONS, **ALIASES}.items():
         def replace(match, full=full):
             if _inside_known_title(match.string, match.start(), match.end()):
                 return match.group(0)
@@ -207,6 +256,14 @@ def doc_not_found(answer):
     return re.match(r"\W*source:\s*\W*none\b", answer, flags=re.IGNORECASE) is not None
 
 
+def is_not_a_question(text):
+    """True for a greeting ('hi', 'hello') or text with no real words ('???', '12345')."""
+    cleaned = re.sub(r"[^\w\s]", "", text).strip()
+    if not re.search(r"[A-Za-z]", cleaned):
+        return True
+    return GREETING_PATTERN.fullmatch(cleaned) is not None
+
+
 def find_title_matches(question):
     """
     Return indices of subjects whose full title appears in the question.
@@ -237,13 +294,15 @@ def build_document_prompt(question, indices):
         "Below are syllabus entries for different subjects. Each entry starts "
         "with its subject code and title.\n\n"
         f"{context}\n\n"
-        "Answer the question using ONLY the single entry whose subject matches "
-        "the question. If the question does not mention a lab, prefer the "
-        "theory course over its lab. "
+        "Answer the question using ONLY the entry whose subject matches the "
+        "question. If the question names several subjects (for example to "
+        "compare them), use the entry of each subject it names. If the question "
+        "does not mention a lab, prefer the theory course over its lab. "
         "If none of the entries is about the subject asked, reply with the "
         "first line 'Source: NONE' and then say the subject was not found. "
         "Otherwise the first line of your reply must be exactly "
-        "'Source: <subject code>', followed by the answer.\n\n"
+        "'Source: <subject code>' (for several subjects: 'Source: <code>, <code>'), "
+        "followed by the answer.\n\n"
         f"Question: {question}"
     )
 
@@ -361,7 +420,7 @@ def decide_route(question):
     """
     Classify which data source(s) a question requires.
 
-    Returns one of: DOCUMENTS, TABLE, or BOTH.
+    Returns one of: DOCUMENTS, TABLE, BOTH, or OTHER (not about college subjects).
     """
     router_prompt = (
         "You are deciding how to answer a question about college subjects. "
@@ -370,8 +429,11 @@ def decide_route(question):
         "questions about what a subject covers, teaches, or includes)\n"
         "2. TABLE - contains code, title, semester, credits (use for questions "
         "involving filtering, counting, comparing numbers, or semester)\n\n"
+        "If the question is not about college subjects at all (a greeting, small "
+        "talk, random letters, or general knowledge), the answer is OTHER. A "
+        "question asking whether a subject exists IS about college subjects.\n\n"
         f"Question: {question}\n\n"
-        "Reply with ONLY one word: DOCUMENTS, TABLE, or BOTH."
+        "Reply with ONLY one word: DOCUMENTS, TABLE, BOTH, or OTHER."
     )
     return ask_llm(router_prompt).upper()
 
@@ -386,6 +448,10 @@ def answer_question(question):
     BOTH, so that neither data source is skipped when the classifier is
     uncertain.
     """
+    if is_not_a_question(question):
+        print("[Router decided: OTHER]")
+        return HELP_MESSAGE
+
     expanded = expand_abbreviations(question)
     if expanded != question:
         print(f"[Expanded short forms -> '{expanded}']")
@@ -393,6 +459,9 @@ def answer_question(question):
 
     route = decide_route(question)
     print(f"[Router decided: {route}]")
+
+    if re.search(r"\bOTHER\b", route):
+        return HELP_MESSAGE
 
     if "DOCUMENTS" in route and "TABLE" not in route:
         answer = answer_from_documents(question)
