@@ -1,0 +1,7 @@
+# Page colours for the Streamlit app (read automatically from this folder).
+[theme]
+base = "light"
+primaryColor = "#2F5BEA"
+backgroundColor = "#F5F7FB"
+secondaryBackgroundColor = "#E9EEF8"
+textColor = "#1B2A49"
