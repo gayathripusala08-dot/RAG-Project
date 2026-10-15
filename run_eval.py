@@ -43,6 +43,8 @@ PAUSE_SECONDS = 5  # keeps us under the free API rate limit
 
 def normalize_route(raw):
     """Same rule the real system uses to turn the router's reply into a route."""
+    if re.search(r"\bOTHER\b", raw):
+        return "OTHER"
     if "DOCUMENTS" in raw and "TABLE" not in raw:
         return "DOCUMENTS"
     if "TABLE" in raw and "DOCUMENTS" not in raw:
