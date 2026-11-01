@@ -32,9 +32,12 @@ from hybrid_router import (
     doc_index,
     embed_model,
     expand_abbreviations,
+    mentions_a_subject,
     retrieve_indices,
+    scheme_courses,
     split_question,
 )
+from semester_summary import semester_reply
 
 CODE_PATTERN = re.compile(r"\b\d{2}[A-Z]{2,5}\d{1,3}N?\b")
 SOURCE_PATTERN = re.compile(r"Source:\s*[\*\[`\s]*([A-Za-z0-9]+)", re.IGNORECASE)
@@ -131,7 +134,10 @@ def run_row(row):
     expected_table = split_codes(row["expected_table_codes"])
     expected_text = row["expected_text"].strip()
     if expected_table or expected_text:
-        output = answer_from_sql(sql_question)
+        # Same order as the real system: a whole-semester question is answered from the tables.
+        output = semester_reply(sql_question, scheme_courses, mentions_a_subject)
+        if output is None:
+            output = answer_from_sql(sql_question)
         if expected_table:
             found = set(CODE_PATTERN.findall(output))
             result["table_found"] = ";".join(sorted(found))

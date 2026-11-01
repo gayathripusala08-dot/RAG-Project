@@ -2,5 +2,5 @@ question,expected_route,expected_subject_code,expected_table_codes,expected_text
 What topics are in the Python Programming Lab?,DOCUMENTS,22ADC05N,,,lab-only subject
 What does Reinforcement Learning cover?,DOCUMENTS,22CAE08N,,,theory course and its lab both exist
 Which semester 4 subjects have 1.5 credits?,TABLE,,22ITC09N;22CSC13N;22ADC42N,,three rows expected
-How many subjects are there in semester 6?,TABLE,,,21,count question - answer is 21
+How many subjects are there in semester 6?,TABLE,,,10,count question - answer is 10 (each elective group counts once)
 Tell me the topics in Discrete Mathematics and how many credits it has,BOTH,22ITC05N,22ITC05N,,compound question
