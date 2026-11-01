@@ -264,6 +264,7 @@ if __name__ == "__main__":
         save(results_file)
         print(f"\nDetails saved to {results_file}")
     except PermissionError:
+        # Windows locks a file that is open in another program
         backup_file = results_file.replace(".csv", "_new.csv")
         save(backup_file)
         print(f"\n{results_file} is open in another program, so the details "
