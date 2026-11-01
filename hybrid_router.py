@@ -28,6 +28,8 @@ import pandas as pd
 from groq import Groq
 from sentence_transformers import SentenceTransformer
 
+from semester_summary import load_scheme, semester_reply
+
 # ============================================================
 # CONFIGURATION AND INITIALIZATION
 # ============================================================
@@ -124,6 +126,10 @@ sql_df = pd.read_csv("subjects.csv")
 # thread) use this connection. It is only read from, never written to.
 conn = sqlite3.connect(":memory:", check_same_thread=False)
 sql_df.to_sql("subjects", conn, index=False, if_exists="replace")
+
+# --- Semester summaries: a student takes ONE subject from each elective group, so
+# a whole semester is answered from these tables, not by LLM-written SQL.
+scheme_courses = load_scheme("subjects.csv", "electives.csv")
 
 def make_short_form(title):
     """First letters of a title, e.g. 'INDIAN CONSTITUTION AND FUNDAMENTAL PRINCIPLES' -> 'ICFP'."""
@@ -275,6 +281,12 @@ def find_title_matches(question):
     q = question.lower()
     hits = [i for i, t in enumerate(titles) if t and t.lower() in q]
     return sorted(hits, key=lambda i: len(titles[i]), reverse=True)
+
+
+def mentions_a_subject(question):
+    """True if the question names a subject, by full title, short form or everyday name."""
+    expanded = expand_abbreviations(question)
+    return expanded != question or bool(find_title_matches(expanded))
 
 
 # ============================================================
@@ -451,6 +463,12 @@ def answer_question(question):
     if is_not_a_question(question):
         print("[Router decided: OTHER]")
         return HELP_MESSAGE
+
+    # A whole-semester question is answered from the tables, electives counted once.
+    semester_answer = semester_reply(question, scheme_courses, mentions_a_subject)
+    if semester_answer:
+        print("[Router decided: SEMESTER]")
+        return semester_answer
 
     expanded = expand_abbreviations(question)
     if expanded != question:
